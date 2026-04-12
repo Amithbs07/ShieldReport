@@ -1,0 +1,4 @@
+Seeding ShieldReport Database...
+Error: ENCRYPTION_KEY must be exactly 64 hex characters (32 bytes)
+    at encrypt (C:\Users\hp\Downloads\ShieldReport\backend\src\utils\encryption.ts:15:11)
+    at main (C:\Users\hp\Downloads\ShieldReport\backend\src\scripts\seed.ts:60:29)

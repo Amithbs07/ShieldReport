@@ -1,0 +1,12 @@
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": SQLite database "dev.db" at "file:./dev.db"
+
+Your database is now in sync with your Prisma schema. Done in 98ms
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[GEPERM: operation not permitted, rename 'C:\Users\hp\Downloads\ShieldReport\backe
+nd\node_modules\.prisma\client\query_engine-windows.dll.node.tmp15112' -> 
+'C:\Users\hp\Downloads\ShieldReport\backend\node_modules\.prisma\client\query_en
+gine-windows.dll.node'
+

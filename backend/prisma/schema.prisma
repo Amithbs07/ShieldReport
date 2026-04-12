@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model Organization {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  reports     Report[]
+  admins      Admin[]
+}
+
+model Admin {
+  id             String       @id @default(uuid())
+  email          String       @unique
+  passwordHash   String
+  role           String       @default("VIEWER") // ADMIN, INVESTIGATOR, VIEWER
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model Report {
+  id              String       @id @default(uuid())
+  caseToken       String       @unique // the unique 12-char tracker
+  description     String       // encrypted at rest
+  category        String
+  severity        String       // LOW, MEDIUM, HIGH, CRITICAL
+  status          String       @default("SUBMITTED") // SUBMITTED, UNDER_REVIEW, INVESTIGATION_STARTED, ACTION_TAKEN, RESOLVED
+  aiUrgencyScore  Float?
+  aiSummary       String?
+  aiTags          String?
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  messages        Message[]
+}
+
+model Message {
+  id          String   @id @default(uuid())
+  reportId    String
+  report      Report   @relation(fields: [reportId], references: [id])
+  senderType  String   // REPORTER or ADMIN
+  content     String   // encrypted at rest
+  createdAt   DateTime @default(now())
+}
