@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { Shield, EyeOff, Lock, Server, MapPin } from 'lucide-react';
+import { Shield, EyeOff, Lock, MapPin } from 'lucide-react';
 
 export const Privacy = () => {
   return (
