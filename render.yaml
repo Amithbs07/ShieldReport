@@ -17,6 +17,15 @@ services:
         value: "10000"
       - key: JWT_SECRET
         generateValue: true
+      - key: FRONTEND_URL
+        fromService:
+          type: web
+          name: shieldreport-frontend
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: ENCRYPTION_KEY
+        sync: false
+      - key: OPENAI_API_KEY
+        sync: false
 
   # -------------------------
   # 2. Frontend (Vite Static Site)
