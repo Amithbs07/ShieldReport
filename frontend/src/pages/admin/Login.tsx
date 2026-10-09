@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Shield, Lock, Activity } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Shield, Lock, Activity, ArrowLeft, KeyRound } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Login = () => {
@@ -35,76 +35,99 @@ export const Login = () => {
       } else {
         setError(data.error || 'Invalid credentials');
       }
-    } catch (err) {
-      setError('A network error occurred.');
+    } catch {
+      setError('A network error occurred while connecting to the server.');
     } finally {
       setIsLoading(false);
     }
   };
 
+  const handlePrefillDemo = () => {
+    setEmail('investigator@acme.com');
+    setPassword('admin123');
+  };
+
   return (
-    <div className="min-h-screen bg-navy-900 flex items-center justify-center px-4 font-sans selection:bg-shield-blue/30">
+    <div className="min-h-screen bg-[#070A0F] flex items-center justify-center px-4 font-sans selection:bg-shield-blue/30 relative">
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[450px] h-[300px] bg-shield-blue/15 rounded-full blur-[100px] pointer-events-none" />
+
       <motion.div 
-        initial={{ opacity: 0, scale: 0.95 }}
+        initial={{ opacity: 0, scale: 0.96 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
-        <div className="text-center mb-8">
-          <div className="inline-flex bg-shield-blue/10 p-3 rounded-2xl mb-4 shadow-lg border border-shield-blue/20">
-            <Shield className="w-10 h-10 text-shield-blue" />
+        <div className="text-center mb-8 space-y-2">
+          <div className="inline-flex bg-white/[0.04] p-3 rounded-2xl mb-2 border border-white/[0.08] shadow-apple-glass">
+            <Shield className="w-8 h-8 text-shield-blue" />
           </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">ShieldAdmin</h1>
-          <p className="text-gray-400 mt-2">Secure Investigator Portal</p>
+          <h1 className="text-3xl font-semibold text-white tracking-tight">ShieldAdmin</h1>
+          <p className="text-apple-gray-400 text-xs">Secure Investigator & Compliance Triage Console</p>
         </div>
 
-        <div className="bg-navy-800 border border-white/10 rounded-2xl p-8 shadow-2xl relative overflow-hidden">
-          {/* Subtle background glow */}
-          <div className="absolute -top-24 -right-24 w-48 h-48 bg-shield-blue/10 blur-[50px] rounded-full pointer-events-none"></div>
-
-          <form onSubmit={handleLogin} className="space-y-6 relative z-10">
+        <div className="bg-white/[0.03] border border-white/[0.08] backdrop-blur-2xl rounded-3xl p-8 shadow-apple-card relative overflow-hidden">
+          <form onSubmit={handleLogin} className="space-y-5">
             {error && (
-              <div className="bg-red-500/10 border border-red-500/30 text-red-400 px-4 py-3 rounded-lg text-sm flex items-center">
+              <div className="bg-alert-red/10 border border-alert-red/30 text-alert-red px-4 py-3 rounded-2xl text-xs flex items-center">
                 <Activity className="w-4 h-4 mr-2 shrink-0" />
                 {error}
               </div>
             )}
             
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">Email Address</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono uppercase text-apple-gray-400">Investigator Email</label>
               <input 
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full bg-navy-900 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-shield-blue/50 focus:border-shield-blue transition-all"
+                className="w-full bg-black/40 border border-white/[0.1] rounded-2xl px-4 py-3 text-white placeholder-apple-gray-600 focus:outline-none focus:border-shield-blue text-sm transition-all shadow-inner"
                 placeholder="investigator@acme.com"
               />
             </div>
 
-            <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-300">Password</label>
+            <div className="space-y-1.5">
+              <label className="text-xs font-mono uppercase text-apple-gray-400">Hardware Secret Password</label>
               <div className="relative">
                 <input 
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full bg-navy-900 border border-white/10 rounded-xl pl-10 pr-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-shield-blue/50 focus:border-shield-blue transition-all"
+                  className="w-full bg-black/40 border border-white/[0.1] rounded-2xl pl-10 pr-4 py-3 text-white placeholder-apple-gray-600 focus:outline-none focus:border-shield-blue text-sm transition-all shadow-inner"
                   placeholder="••••••••"
                 />
-                <Lock className="w-5 h-5 text-gray-500 absolute left-3 top-3.5" />
+                <Lock className="w-4 h-4 text-apple-gray-500 absolute left-3.5 top-3.5" />
               </div>
             </div>
 
             <button 
               type="submit"
               disabled={isLoading}
-              className="w-full bg-shield-blue hover:bg-blue-600 text-white font-semibold rounded-xl py-3.5 transition-all shadow-[0_0_15px_rgba(37,99,235,0.2)] hover:shadow-[0_0_25px_rgba(37,99,235,0.4)] flex justify-center items-center"
+              className="w-full bg-shield-blue hover:bg-blue-500 text-white font-medium text-sm rounded-2xl py-3.5 transition-all shadow-apple-glow active:scale-95 flex justify-center items-center disabled:opacity-50"
             >
-              {isLoading ? 'Authenticating...' : 'Sign In'}
+              {isLoading ? 'Authenticating Session...' : 'Authenticate Investigator Session'}
             </button>
           </form>
+
+          {/* Quick Demo Credentials Assistant */}
+          <div className="mt-6 pt-5 border-t border-white/[0.06] flex items-center justify-between text-xs">
+            <span className="text-apple-gray-500 font-mono text-[11px]">Demo: investigator@acme.com</span>
+            <button
+              onClick={handlePrefillDemo}
+              type="button"
+              className="text-shield-blue hover:text-blue-400 font-mono text-[11px] flex items-center space-x-1"
+            >
+              <KeyRound className="w-3 h-3 mr-1" />
+              <span>Auto-Fill Demo Credentials</span>
+            </button>
+          </div>
+        </div>
+
+        <div className="text-center mt-6">
+          <Link to="/" className="text-xs text-apple-gray-400 hover:text-white transition-colors inline-flex items-center">
+            <ArrowLeft className="w-3 h-3 mr-1" /> Return to Public Portal
+          </Link>
         </div>
       </motion.div>
     </div>

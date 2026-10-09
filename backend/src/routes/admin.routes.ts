@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { verifyAdmin } from '../middleware/auth.middleware';
-import { getDashboardStats, getRecentCases } from '../controllers/admin.controller';
+import { getDashboardStats, getRecentCases, getEvidenceQueue, updateEvidenceStatus } from '../controllers/admin.controller';
 
 const router = Router();
 
@@ -9,5 +9,7 @@ router.use(verifyAdmin);
 
 router.get('/stats', getDashboardStats);
 router.get('/cases', getRecentCases);
+router.get('/evidence', getEvidenceQueue);
+router.patch('/evidence/:id/review', updateEvidenceStatus);
 
 export default router;

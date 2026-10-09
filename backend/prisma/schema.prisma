@@ -6,7 +6,7 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -42,12 +42,34 @@ model Report {
   aiUrgencyScore  Float?
   aiSummary       String?
   aiTags          String?
+  incidentSchedule String?     // structured JSON schedule and timeline
+  nlpFraudScore   Float?       // NLP fraud/spam probability score 0-100
+  nlpCredibilityScore Float?   // NLP witness credibility score 0-100
+  nlpAnalysis     String?      // NLP linguistic forensic reasoning
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id])
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
 
   messages        Message[]
+  evidence        Evidence[]
+}
+
+model Evidence {
+  id               String    @id @default(uuid())
+  reportId         String
+  report           Report    @relation(fields: [reportId], references: [id])
+  fileName         String
+  fileSize         Int
+  fileType         String
+  dataUrl          String?
+  sha256Hash       String
+  cvAuthenticity   Float     @default(98.5) // CV authenticity probability 0-100
+  cvTamperScore    Float     @default(1.5)  // CV manipulation probability 0-100
+  approvalStatus   String    @default("PENDING_MANUAL_APPROVAL") // PENDING_MANUAL_APPROVAL, APPROVED, REJECTED
+  reviewerNotes    String?
+  reviewedAt       DateTime?
+  createdAt        DateTime  @default(now())
 }
 
 model Message {

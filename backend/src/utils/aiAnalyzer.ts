@@ -1,9 +1,13 @@
 import OpenAI from 'openai';
 
-// Initialize OpenAI client
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Initialize OpenAI client conditionally
+const getOpenAIClient = () => {
+  const apiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!apiKey || apiKey.startsWith('sk-...')) {
+    return null;
+  }
+  return new OpenAI({ apiKey });
+};
 
 export interface AIAnalysisResult {
   urgencyScore: number;
@@ -20,7 +24,8 @@ export const analyzeReport = async (
   category: string, 
   severity: string
 ): Promise<AIAnalysisResult | null> => {
-  if (!process.env.OPENAI_API_KEY) {
+  const openai = getOpenAIClient();
+  if (!openai) {
     console.log('OpenAI API Key not configured. Skipping AI Analysis.');
     return null;
   }

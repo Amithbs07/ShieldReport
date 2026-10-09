@@ -16,10 +16,9 @@ app.use(cors({
 
 app.use(express.json());
 
-// Strict rate limiting for the API
 const limiter = rateLimit({
-	windowMs: 60 * 60 * 1000, // 1 hour
-	limit: 5, // 5 requests per IP per windowMs
+	windowMs: 15 * 60 * 1000, // 15 minutes
+	limit: 100, // 100 requests per windowMs
 	standardHeaders: 'draft-7', // draft-6: `RateLimit-*` headers; draft-7: combined `RateLimit` header
 	legacyHeaders: false, // Disable the `X-RateLimit-*` headers
 })

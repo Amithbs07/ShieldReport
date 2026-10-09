@@ -44,8 +44,11 @@ export const getRecentCases = async (req: Request, res: Response) => {
 
     const cases = await prisma.report.findMany({
       where: { organizationId },
+      include: {
+        evidence: true
+      },
       orderBy: { createdAt: 'desc' },
-      take: 10
+      take: 20
     });
 
     const decryptedCases = cases.map(c => {
@@ -64,7 +67,13 @@ export const getRecentCases = async (req: Request, res: Response) => {
         date: c.createdAt,
         summary: c.aiSummary || description.substring(0, 50) + '...', // Fallback to description snippet
         severity: c.severity,
-        tags: c.aiTags
+        tags: c.aiTags,
+        incidentSchedule: c.incidentSchedule,
+        nlpFraudScore: c.nlpFraudScore,
+        nlpCredibilityScore: c.nlpCredibilityScore,
+        nlpAnalysis: c.nlpAnalysis,
+        evidenceCount: c.evidence.length,
+        evidence: c.evidence
       };
     });
 
@@ -77,3 +86,66 @@ export const getRecentCases = async (req: Request, res: Response) => {
     return res.status(500).json({ error: 'Internal server error' });
   }
 };
+
+export const getEvidenceQueue = async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).admin;
+    const organizationId = admin.organizationId;
+
+    const evidenceList = await prisma.evidence.findMany({
+      where: {
+        report: {
+          organizationId
+        }
+      },
+      include: {
+        report: {
+          select: {
+            caseToken: true,
+            category: true,
+            severity: true,
+            status: true
+          }
+        }
+      },
+      orderBy: { createdAt: 'desc' }
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: evidenceList
+    });
+  } catch (error) {
+    console.error('Error fetching evidence queue:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const updateEvidenceStatus = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { approvalStatus, reviewerNotes } = req.body;
+
+    if (!['APPROVED', 'REJECTED', 'PENDING_MANUAL_APPROVAL'].includes(approvalStatus)) {
+      return res.status(400).json({ error: 'Invalid approval status' });
+    }
+
+    const updated = await prisma.evidence.update({
+      where: { id: id as string },
+      data: {
+        approvalStatus,
+        reviewerNotes: reviewerNotes || null,
+        reviewedAt: new Date()
+      }
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: updated
+    });
+  } catch (error) {
+    console.error('Error updating evidence status:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
