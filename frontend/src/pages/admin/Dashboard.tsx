@@ -1,7 +1,8 @@
-import { AlertTriangle, Activity, CheckCircle2, Cpu, FileCheck, Check, X } from 'lucide-react';
+import { AlertTriangle, Activity, CheckCircle2, Cpu, FileCheck, Check, X, MessageSquare } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AnonymousChat } from '../../components/AnonymousChat';
 
 export const Dashboard = () => {
   const [statsData, setStatsData] = useState<any>(null);
@@ -10,6 +11,7 @@ export const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'cases' | 'evidence' | 'nlp'>('cases');
   const [selectedCase, setSelectedCase] = useState<any | null>(null);
+  const [modalTab, setModalTab] = useState<'details' | 'chat'>('details');
   const [reviewNote, setReviewNote] = useState('');
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
 
@@ -24,13 +26,21 @@ export const Dashboard = () => {
 
     const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || 'http://localhost:5000/api/v1';
 
+    const apiFetch = async (path: string, options?: RequestInit) => {
+      try {
+        return await fetch(`${BACKEND_URL}${path}`, options);
+      } catch {
+        return await fetch(`/api/v1${path}`, options);
+      }
+    };
+
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
       
       const [statsRes, casesRes, evidenceRes] = await Promise.all([
-        fetch(`${BACKEND_URL}/admin/stats`, { headers }),
-        fetch(`${BACKEND_URL}/admin/cases`, { headers }),
-        fetch(`${BACKEND_URL}/admin/evidence`, { headers }).catch(() => null)
+        apiFetch('/admin/stats', { headers }),
+        apiFetch('/admin/cases', { headers }),
+        apiFetch('/admin/evidence', { headers }).catch(() => null)
       ]);
 
       if (statsRes.status === 401 || casesRes.status === 401) {
@@ -78,17 +88,32 @@ export const Dashboard = () => {
     const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || 'http://localhost:5000/api/v1';
 
     try {
-      const res = await fetch(`${BACKEND_URL}/admin/evidence/${evidenceId}/review`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          approvalStatus: newStatus,
-          reviewerNotes: reviewNote || `Manually reviewed and ${newStatus.toLowerCase()} by compliance investigator.`
-        })
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${BACKEND_URL}/admin/evidence/${evidenceId}/review`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            approvalStatus: newStatus,
+            reviewerNotes: reviewNote || `Manually reviewed and ${newStatus.toLowerCase()} by compliance investigator.`
+          })
+        });
+      } catch {
+        res = await fetch(`/api/v1/admin/evidence/${evidenceId}/review`, {
+          method: 'PATCH',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            approvalStatus: newStatus,
+            reviewerNotes: reviewNote || `Manually reviewed and ${newStatus.toLowerCase()} by compliance investigator.`
+          })
+        });
+      }
 
       if (res.ok) {
         setActionFeedback(`Evidence ${evidenceId} status updated to ${newStatus}.`);
@@ -227,13 +252,14 @@ export const Dashboard = () => {
                   <th className="pb-3 px-4 font-medium">Schedule Timeline</th>
                   <th className="pb-3 px-4 font-medium">NLP Integrity</th>
                   <th className="pb-3 px-4 font-medium">Evidence</th>
+                  <th className="pb-3 px-4 font-medium">Chat</th>
                   <th className="pb-3 px-4 font-medium text-right">Status</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/[0.04] text-xs">
                 {cases.length === 0 ? (
                   <tr>
-                    <td colSpan={7} className="py-8 px-4 text-center text-apple-gray-500 font-mono">
+                    <td colSpan={8} className="py-8 px-4 text-center text-apple-gray-500 font-mono">
                       No active cases in database. Submissions appear here in real-time.
                     </td>
                   </tr>
@@ -246,7 +272,7 @@ export const Dashboard = () => {
                     return (
                       <tr 
                         key={c.id} 
-                        onClick={() => setSelectedCase(c)}
+                        onClick={() => { setSelectedCase(c); setModalTab('details'); }}
                         className="hover:bg-white/[0.03] transition-colors cursor-pointer group"
                       >
                         <td className="py-4 px-4 font-mono font-medium text-shield-blue">
@@ -273,6 +299,23 @@ export const Dashboard = () => {
                         </td>
                         <td className="py-4 px-4 text-apple-gray-300">
                           {c.evidenceCount || (c.evidence?.length) || 0} file(s)
+                        </td>
+                        <td className="py-4 px-4">
+                          <button 
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedCase(c);
+                              setModalTab('chat');
+                            }}
+                            className="inline-flex items-center space-x-1.5 px-2.5 py-1 rounded-xl bg-white/[0.04] hover:bg-shield-blue/20 text-apple-gray-300 hover:text-shield-blue border border-white/[0.06] hover:border-shield-blue/30 transition-all font-mono text-[11px]"
+                          >
+                            <MessageSquare className="w-3 h-3 text-shield-blue" />
+                            <span>{c.messageCount || 0}</span>
+                            {(c.reporterMessageCount || 0) > 0 && (
+                              <span className="w-1.5 h-1.5 rounded-full bg-shield-green animate-pulse" />
+                            )}
+                          </button>
                         </td>
                         <td className="py-4 px-4 text-right">
                           <span className="bg-white/[0.06] border border-white/[0.08] text-white px-2.5 py-1 rounded-full text-[10px] font-mono tracking-wider">
@@ -464,33 +507,75 @@ export const Dashboard = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-2 gap-4 text-xs font-mono">
-                <div className="bg-black/30 p-3 rounded-xl border border-white/[0.04]">
-                  <span className="text-[10px] text-apple-gray-500 uppercase block">Category</span>
-                  <span className="text-white font-medium mt-0.5 block">{selectedCase.category}</span>
-                </div>
-                <div className="bg-black/30 p-3 rounded-xl border border-white/[0.04]">
-                  <span className="text-[10px] text-apple-gray-500 uppercase block">Severity Threshold</span>
-                  <span className="text-alert-amber font-medium mt-0.5 block">{selectedCase.severity}</span>
-                </div>
+              {/* Segmented Control for Dossier Details vs Anonymous Chat */}
+              <div className="flex items-center space-x-2 bg-black/40 border border-white/[0.08] p-1 rounded-2xl">
+                <button
+                  type="button"
+                  onClick={() => setModalTab('details')}
+                  className={`flex-1 py-2 text-xs font-medium rounded-xl transition-all ${
+                    modalTab === 'details'
+                      ? 'bg-white/10 text-white font-semibold shadow-sm'
+                      : 'text-apple-gray-400 hover:text-white'
+                  }`}
+                >
+                  Dossier Overview
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setModalTab('chat')}
+                  className={`flex-1 py-2 text-xs font-medium rounded-xl transition-all flex items-center justify-center space-x-1.5 ${
+                    modalTab === 'chat'
+                      ? 'bg-white/10 text-white font-semibold shadow-sm'
+                      : 'text-apple-gray-400 hover:text-white'
+                  }`}
+                >
+                  <MessageSquare className="w-3.5 h-3.5 text-shield-blue" />
+                  <span>Anonymous Reporter Chat</span>
+                  {(selectedCase.messageCount || 0) > 0 && (
+                    <span className="px-1.5 py-0.2 rounded-full text-[10px] font-mono bg-shield-blue/20 text-shield-blue">
+                      {selectedCase.messageCount}
+                    </span>
+                  )}
+                </button>
               </div>
 
-              {/* Decrypted Summary */}
-              <div className="bg-black/40 border border-white/[0.06] p-4 rounded-2xl space-y-2">
-                <span className="text-[10px] font-mono text-apple-gray-500 uppercase block">Decrypted Incident Brief</span>
-                <p className="text-xs text-apple-gray-300 font-sans leading-relaxed">
-                  {selectedCase.summary}
-                </p>
-              </div>
+              {modalTab === 'details' ? (
+                <>
+                  <div className="grid grid-cols-2 gap-4 text-xs font-mono">
+                    <div className="bg-black/30 p-3 rounded-xl border border-white/[0.04]">
+                      <span className="text-[10px] text-apple-gray-500 uppercase block">Category</span>
+                      <span className="text-white font-medium mt-0.5 block">{selectedCase.category}</span>
+                    </div>
+                    <div className="bg-black/30 p-3 rounded-xl border border-white/[0.04]">
+                      <span className="text-[10px] text-apple-gray-500 uppercase block">Severity Threshold</span>
+                      <span className="text-alert-amber font-medium mt-0.5 block">{selectedCase.severity}</span>
+                    </div>
+                  </div>
 
-              {/* Schedule Timeline */}
-              {selectedCase.incidentSchedule && (
-                <div className="bg-black/40 border border-white/[0.06] p-4 rounded-2xl space-y-2 text-xs">
-                  <span className="text-[10px] font-mono text-alert-amber uppercase block">Verified Incident Schedule</span>
-                  <p className="text-apple-gray-300 font-mono text-[11px]">
-                    {typeof selectedCase.incidentSchedule === 'string' ? selectedCase.incidentSchedule : JSON.stringify(selectedCase.incidentSchedule)}
-                  </p>
-                </div>
+                  {/* Decrypted Summary */}
+                  <div className="bg-black/40 border border-white/[0.06] p-4 rounded-2xl space-y-2">
+                    <span className="text-[10px] font-mono text-apple-gray-500 uppercase block">Decrypted Incident Brief</span>
+                    <p className="text-xs text-apple-gray-300 font-sans leading-relaxed">
+                      {selectedCase.summary}
+                    </p>
+                  </div>
+
+                  {/* Schedule Timeline */}
+                  {selectedCase.incidentSchedule && (
+                    <div className="bg-black/40 border border-white/[0.06] p-4 rounded-2xl space-y-2 text-xs">
+                      <span className="text-[10px] font-mono text-alert-amber uppercase block">Verified Incident Schedule</span>
+                      <p className="text-apple-gray-300 font-mono text-[11px]">
+                        {typeof selectedCase.incidentSchedule === 'string' ? selectedCase.incidentSchedule : JSON.stringify(selectedCase.incidentSchedule)}
+                      </p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <AnonymousChat 
+                  caseToken={selectedCase.id} 
+                  senderRole="ADMIN" 
+                  adminAuthToken={localStorage.getItem('adminToken') || ''} 
+                />
               )}
 
               <div className="flex justify-end pt-2">
