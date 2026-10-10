@@ -7,3 +7,5 @@ build/
 coverage/
 backend/prisma/dev.db
 backend/prisma/dev.db-journal
+package-lock.json
+*/package-lock.json
