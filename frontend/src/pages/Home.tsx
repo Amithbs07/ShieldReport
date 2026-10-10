@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { ArrowRight, ShieldCheck, Lock, EyeOff, Cpu, Clock, FileSearch, Fingerprint } from 'lucide-react';
+import { ArrowRight, ShieldCheck, Lock, EyeOff, Cpu, Clock, FileSearch, Fingerprint, Blocks, HeartHandshake } from 'lucide-react';
+
 import { Link } from 'react-router-dom';
 
 const Home = () => {
@@ -195,8 +196,37 @@ const Home = () => {
               Dual-Layer Custody Verification
             </div>
           </div>
+
+          {/* Card 7: Blockchain Chain-of-Custody Ledger */}
+          <div className="bg-white/[0.03] border border-white/[0.08] backdrop-blur-xl p-7 rounded-3xl shadow-apple-card hover:bg-white/[0.05] transition-all group">
+            <div className="w-12 h-12 rounded-2xl bg-shield-green/10 border border-shield-green/20 flex items-center justify-center mb-6 text-shield-green group-hover:scale-105 transition-transform">
+              <Blocks className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">Blockchain Chain-of-Custody</h3>
+            <p className="text-apple-gray-400 text-sm leading-relaxed mb-4">
+              Every report hash and evidence Merkle root is anchored into an immutable, append-only cryptographic blockchain ledger. Prohibits insider tampering or deletion.
+            </p>
+            <div className="inline-flex items-center text-[11px] font-mono text-shield-green font-medium bg-shield-green/10 px-2.5 py-1 rounded-full">
+              SHA-256 Chained Block Proof
+            </div>
+          </div>
+
+          {/* Card 8: DistilBERT Emotion & Crisis Prioritization */}
+          <div className="bg-white/[0.03] border border-white/[0.08] backdrop-blur-xl p-7 rounded-3xl shadow-apple-card hover:bg-white/[0.05] transition-all group">
+            <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-6 text-purple-400 group-hover:scale-105 transition-transform">
+              <HeartHandshake className="w-6 h-6" />
+            </div>
+            <h3 className="text-lg font-semibold text-white mb-2">DistilBERT Emotion Recognition</h3>
+            <p className="text-apple-gray-400 text-sm leading-relaxed mb-4">
+              Synthesizing IEEE ICSADL 2026 research: Evaluates distress, fear, trauma, and urgency to prioritize vulnerable victims of abuse and harassment with trauma-informed routing.
+            </p>
+            <div className="inline-flex items-center text-[11px] font-mono text-purple-400 font-medium bg-purple-500/10 px-2.5 py-1 rounded-full">
+              IEEE Paper 11452105 Research Architecture
+            </div>
+          </div>
         </div>
       </motion.div>
+
 
       {/* How it Works 4-Phase Snapshot with link */}
       <motion.div 

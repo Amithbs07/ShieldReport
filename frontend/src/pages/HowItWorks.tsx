@@ -102,10 +102,10 @@ export const HowItWorks = () => {
               <h3 className="font-semibold text-xl text-white">AI Triage & Review</h3>
             </div>
             <p className="text-apple-gray-400 text-sm leading-relaxed">
-              Your encrypted report lands in our secure database. An AI agent securely assesses urgency so critical matters are flagged immediately. Administrative reviewers are notified but see only the facts—never your identity.
+              Your encrypted report lands in our secure enclave. DistilBERT-powered emotion analysis and forensic NLP screen for distress, high-risk crises, and credibility. Real-time computer vision sanitizes EXIF tags and calculates SHA-256 tamper fingerprints before anchoring to an immutable blockchain ledger.
             </p>
             <div className="inline-flex items-center text-[11px] font-mono text-apple-gray-500 bg-white/[0.02] border border-white/[0.04] px-2.5 py-1 rounded-lg">
-              NLP Anti-Fraud Verification + Computer Vision Forensic Screening
+              DistilBERT Emotion Detection (IEEE ICSADL) + CV Forensics + Blockchain Notarization
             </div>
           </div>
 
@@ -129,16 +129,17 @@ export const HowItWorks = () => {
           <div className="w-full md:w-[calc(50%-2.5rem)] space-y-2 order-2">
             <div className="flex items-center space-x-2">
               <span className="text-purple-400 font-mono font-semibold px-2 py-0.5 bg-purple-400/10 rounded-full text-[11px] tracking-wider">STEP 4</span>
-              <h3 className="font-semibold text-xl text-white">Track & Chat Securely</h3>
+              <h3 className="font-semibold text-xl text-white">Track & Verify On-Chain</h3>
             </div>
             <p className="text-apple-gray-400 text-sm leading-relaxed">
-              Use your token to log back in anytime to see status updates. You can chat anonymously with the investigation team to provide more evidence without ever revealing who you are.
+              Use your token to log back in anytime to see case milestones. You can independently verify the cryptographic blockchain proof to guarantee that no internal administrator has altered your report or deleted evidence.
             </p>
             <div className="inline-flex items-center text-[11px] font-mono text-apple-gray-500 bg-white/[0.02] border border-white/[0.04] px-2.5 py-1 rounded-lg">
-              Evidence Manual Approval Status & Timeline Auditing Live
+              Cryptographic Blockchain Audit Verification + Chain-of-Custody Certificate
             </div>
           </div>
         </motion.div>
+
       </div>
 
       {/* CTA Box */}

@@ -46,6 +46,19 @@ model Report {
   nlpFraudScore   Float?       // NLP fraud/spam probability score 0-100
   nlpCredibilityScore Float?   // NLP witness credibility score 0-100
   nlpAnalysis     String?      // NLP linguistic forensic reasoning
+  
+  // DistilBERT Emotion Analysis (inspired by IEEE 11452105)
+  emotionPrimary  String?      // Fear, Distress, Anger, Trauma, Calm
+  emotionIntensity Float?      // 0-100%
+  isHighRiskCrisis Boolean     @default(false)
+  crisisInterventionNotes String?
+
+  // Blockchain Chain-of-Custody Notary
+  blockchainTxHash String?
+  blockchainBlockNumber Int?
+  blockchainBlockHash String?
+  merkleRoot      String?
+
   organizationId  String
   organization    Organization @relation(fields: [organizationId], references: [id])
   createdAt       DateTime     @default(now())
@@ -66,10 +79,26 @@ model Evidence {
   sha256Hash       String
   cvAuthenticity   Float     @default(98.5) // CV authenticity probability 0-100
   cvTamperScore    Float     @default(1.5)  // CV manipulation probability 0-100
+  cvCategory       String?   // DOCUMENT, IMAGE_SCENE, SCREENSHOT, INJURY_HAZARD
+  cvElaScore       Float?    // Error Level Analysis score
+  blockchainProof  String?   // Individual evidence hash anchor
   approvalStatus   String    @default("PENDING_MANUAL_APPROVAL") // PENDING_MANUAL_APPROVAL, APPROVED, REJECTED
   reviewerNotes    String?
   reviewedAt       DateTime?
   createdAt        DateTime  @default(now())
+}
+
+model BlockchainBlock {
+  id                 String   @id @default(uuid())
+  blockNumber        Int      @unique
+  timestamp          DateTime @default(now())
+  previousHash       String
+  blockHash          String   @unique
+  caseTokenHash      String
+  reportContentHash  String
+  evidenceMerkleRoot String
+  nonce              Int      @default(0)
+  createdAt          DateTime @default(now())
 }
 
 model Message {
@@ -80,3 +109,4 @@ model Message {
   content     String   // encrypted at rest
   createdAt   DateTime @default(now())
 }
+

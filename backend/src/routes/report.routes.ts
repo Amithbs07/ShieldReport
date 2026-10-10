@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { submitReport, getReportStatus } from '../controllers/report.controller';
+import { submitReport, getReportStatus, getReportBlockchainProof } from '../controllers/report.controller';
 import { stripIPMiddleware } from '../middleware/ipStripper';
 
 const router = Router();
@@ -8,5 +8,6 @@ const router = Router();
 router.post('/submit', stripIPMiddleware, submitReport);
 
 router.get('/status/:token', stripIPMiddleware, getReportStatus);
+router.get('/status/:token/proof', stripIPMiddleware, getReportBlockchainProof);
 
 export default router;

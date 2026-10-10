@@ -1,25 +1,33 @@
 import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { decrypt } from '../utils/encryption';
+import { getFullBlockchainLedger } from '../utils/blockchain';
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
     const admin = (req as any).admin;
     const organizationId = admin.organizationId;
 
-    const [activeCases, criticalFlags, pendingReview, resolvedCases] = await Promise.all([
+    const [activeCases, criticalFlags, pendingReview, resolvedCases, totalBlocks] = await Promise.all([
       prisma.report.count({
         where: { organizationId, status: { notIn: ['RESOLVED'] } }
       }),
       prisma.report.count({
-        where: { organizationId, severity: 'Critical' }
+        where: { 
+          organizationId, 
+          OR: [
+            { severity: 'Critical' },
+            { isHighRiskCrisis: true }
+          ]
+        }
       }),
       prisma.report.count({
         where: { organizationId, status: 'UNDER_REVIEW' }
       }),
       prisma.report.count({
         where: { organizationId, status: 'RESOLVED' }
-      })
+      }),
+      prisma.blockchainBlock.count()
     ]);
 
     return res.status(200).json({
@@ -28,7 +36,8 @@ export const getDashboardStats = async (req: Request, res: Response) => {
         activeCases,
         criticalFlags,
         pendingReview,
-        resolvedCases
+        resolvedCases,
+        totalBlocks
       }
     });
   } catch (error) {
@@ -52,12 +61,11 @@ export const getRecentCases = async (req: Request, res: Response) => {
     });
 
     const decryptedCases = cases.map(c => {
-      // In a real strict implementation, only investigators might get the decrypted description.
       let description = 'Encrypted content';
       try {
-          description = decrypt(c.description);
+        description = decrypt(c.description);
       } catch(e) {
-          console.error("Failed to decrypt description for case", c.caseToken);
+        console.error("Failed to decrypt description for case", c.caseToken);
       }
       return {
         id: c.caseToken,
@@ -65,13 +73,27 @@ export const getRecentCases = async (req: Request, res: Response) => {
         aiScore: c.aiUrgencyScore,
         status: c.status,
         date: c.createdAt,
-        summary: c.aiSummary || description.substring(0, 50) + '...', // Fallback to description snippet
+        summary: c.aiSummary || description.substring(0, 50) + '...',
+        descriptionSnippet: description.substring(0, 160) + '...',
         severity: c.severity,
         tags: c.aiTags,
         incidentSchedule: c.incidentSchedule,
         nlpFraudScore: c.nlpFraudScore,
         nlpCredibilityScore: c.nlpCredibilityScore,
         nlpAnalysis: c.nlpAnalysis,
+        
+        // Emotion & Crisis fields (IEEE 11452105)
+        emotionPrimary: c.emotionPrimary,
+        emotionIntensity: c.emotionIntensity,
+        isHighRiskCrisis: c.isHighRiskCrisis,
+        crisisInterventionNotes: c.crisisInterventionNotes,
+
+        // Blockchain Chain of Custody Notary
+        blockchainTxHash: c.blockchainTxHash,
+        blockchainBlockNumber: c.blockchainBlockNumber,
+        blockchainBlockHash: c.blockchainBlockHash,
+        merkleRoot: c.merkleRoot,
+
         evidenceCount: c.evidence.length,
         evidence: c.evidence
       };
@@ -104,7 +126,8 @@ export const getEvidenceQueue = async (req: Request, res: Response) => {
             caseToken: true,
             category: true,
             severity: true,
-            status: true
+            status: true,
+            emotionPrimary: true
           }
         }
       },
@@ -149,3 +172,15 @@ export const updateEvidenceStatus = async (req: Request, res: Response) => {
   }
 };
 
+export const getBlockchainLedger = async (req: Request, res: Response) => {
+  try {
+    const ledger = await getFullBlockchainLedger(50);
+    return res.status(200).json({
+      success: true,
+      data: ledger
+    });
+  } catch (error) {
+    console.error('Error fetching blockchain ledger:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
