@@ -2,6 +2,8 @@ import { Request, Response } from 'express';
 import prisma from '../lib/prisma';
 import { decrypt } from '../utils/encryption';
 import { getFullBlockchainLedger } from '../utils/blockchain';
+import { recordAuditLog, getAuditLogs } from '../utils/auditLogger';
+import { sendWebhookRequest } from '../utils/webhookDispatcher';
 
 export const getDashboardStats = async (req: Request, res: Response) => {
   try {
@@ -153,6 +155,7 @@ export const updateEvidenceStatus = async (req: Request, res: Response) => {
       return res.status(400).json({ error: 'Invalid approval status' });
     }
 
+    const admin = (req as any).admin;
     const updated = await prisma.evidence.update({
       where: { id: id as string },
       data: {
@@ -162,6 +165,14 @@ export const updateEvidenceStatus = async (req: Request, res: Response) => {
       }
     });
 
+    await recordAuditLog({
+      adminId: admin?.id,
+      adminEmail: admin?.email,
+      action: 'REVIEW_EVIDENCE',
+      caseToken: updated.reportId,
+      details: `Evidence '${updated.fileName}' updated to ${approvalStatus}`,
+    });
+
     return res.status(200).json({
       success: true,
       data: updated
@@ -169,6 +180,165 @@ export const updateEvidenceStatus = async (req: Request, res: Response) => {
   } catch (error) {
     console.error('Error updating evidence status:', error);
     return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const updateCaseStatus = async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).admin;
+    const { token } = req.params;
+    const { status } = req.body;
+
+    const validStatuses = ['SUBMITTED', 'UNDER_REVIEW', 'INVESTIGATION_STARTED', 'ACTION_TAKEN', 'RESOLVED'];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ error: 'Invalid case status' });
+    }
+
+    const updated = await prisma.report.update({
+      where: { caseToken: token as string },
+      data: { status }
+    });
+
+    await recordAuditLog({
+      adminId: admin?.id,
+      adminEmail: admin?.email,
+      action: 'UPDATE_STATUS',
+      caseToken: token as string,
+      details: `Case status transitioned to ${status}`,
+    });
+
+    return res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    console.error('Error updating case status:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const logCaseAccess = async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).admin;
+    const { token } = req.params;
+    await recordAuditLog({
+      adminId: admin?.id,
+      adminEmail: admin?.email,
+      action: 'VIEW_DOSSIER',
+      caseToken: token as string,
+      details: 'Investigator accessed full decrypted case dossier',
+    });
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error('Error recording case access:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getAdminAuditLogs = async (req: Request, res: Response) => {
+  try {
+    const logs = await getAuditLogs(100);
+    return res.status(200).json({
+      success: true,
+      data: logs
+    });
+  } catch (error) {
+    console.error('Error fetching audit logs:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const getWebhookSettings = async (req: Request, res: Response) => {
+  try {
+    const [configs, deliveries] = await Promise.all([
+      prisma.webhookConfig.findMany({ orderBy: { createdAt: 'desc' } }),
+      prisma.webhookDeliveryLog.findMany({ orderBy: { createdAt: 'desc' }, take: 25 })
+    ]);
+
+    const activeConfig = configs[0] || null;
+    const envUrl = process.env.WEBHOOK_URL || null;
+
+    return res.status(200).json({
+      success: true,
+      data: {
+        config: activeConfig,
+        envWebhookUrl: envUrl,
+        deliveries
+      }
+    });
+  } catch (error) {
+    console.error('Error fetching webhook settings:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const saveWebhookSettings = async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).admin;
+    const { url, events, isEnabled } = req.body;
+
+    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+      return res.status(400).json({ error: 'Valid HTTP/HTTPS Webhook URL is required' });
+    }
+
+    const config = await prisma.webhookConfig.create({
+      data: {
+        organizationId: admin?.organizationId || null,
+        url,
+        events: events || 'ALL',
+        isEnabled: isEnabled !== undefined ? !!isEnabled : true,
+      }
+    });
+
+    await recordAuditLog({
+      adminId: admin?.id,
+      adminEmail: admin?.email,
+      action: 'CONFIG_WEBHOOK',
+      details: `Configured webhook: ${url.substring(0, 30)}... [Events: ${events || 'ALL'}]`,
+    });
+
+    return res.status(200).json({ success: true, data: config });
+  } catch (error) {
+    console.error('Error saving webhook settings:', error);
+    return res.status(500).json({ error: 'Internal server error' });
+  }
+};
+
+export const testWebhook = async (req: Request, res: Response) => {
+  try {
+    const admin = (req as any).admin;
+    const { url } = req.body;
+
+    const targetUrl = url || process.env.WEBHOOK_URL;
+    if (!targetUrl) {
+      return res.status(400).json({ error: 'No webhook URL provided or configured' });
+    }
+
+    const testPayload = {
+      caseToken: 'SHR-TEST-SIEM',
+      category: 'Whistleblowing & SIEM Probe',
+      severity: 'Critical',
+      aiUrgencyScore: 99,
+      isHighRiskCrisis: true,
+      crisisCategory: 'Synthetic Healthcheck Test Broadcast',
+      emotionPrimary: 'Objective / Calibrated',
+      evidenceCount: 1,
+      timestamp: new Date().toISOString()
+    };
+
+    const outcome = await sendWebhookRequest(targetUrl, testPayload);
+
+    await recordAuditLog({
+      adminId: admin?.id,
+      adminEmail: admin?.email,
+      action: 'TEST_WEBHOOK',
+      details: `Triggered test alert to ${targetUrl.substring(0, 30)}... (Success: ${outcome.success})`,
+    });
+
+    return res.status(200).json({
+      success: outcome.success,
+      data: outcome
+    });
+  } catch (error: any) {
+    console.error('Error executing test webhook:', error);
+    return res.status(500).json({ error: error.message || 'Internal server error' });
   }
 };
 
