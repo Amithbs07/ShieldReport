@@ -1,6 +1,7 @@
 import { ReactNode, useEffect, useState } from 'react';
 import { Shield, Lock, ShieldAlert, Activity } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
+import { QuickExit } from './QuickExit';
 
 interface LayoutProps {
   children: ReactNode;
@@ -162,6 +163,9 @@ export const Layout = ({ children }: LayoutProps) => {
           </div>
         </div>
       </footer>
+
+      {/* Persistent Floating Anti-Surveillance Panic Evacuation */}
+      <QuickExit />
     </div>
   );
 };

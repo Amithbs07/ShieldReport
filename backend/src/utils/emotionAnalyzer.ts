@@ -94,13 +94,27 @@ export const analyzeEmotionAndRisk = (
   });
 
   // Check Category Weightings
-  if (category === 'Community Safety') {
-    fearScore += 15;
-  } else if (category === 'Workplace Harassment') {
-    distressScore += 15;
-    angerScore += 10;
-  } else if (category === 'Civic/Government Fraud') {
+  if (category === 'Community Safety' || category === 'Physical Threat & Violence' || category === 'Environmental & Hazard Violation') {
+    fearScore += 20;
+  } else if (category === 'Workplace Harassment' || category === 'Bullying & Cyber Harassment' || category === 'Discrimination & Civil Rights') {
+    distressScore += 18;
+    angerScore += 12;
+  } else if (category === 'Ragging & Student Hazing') {
+    fearScore += 16;
+    distressScore += 20;
+  } else if (category === 'Civic/Government Fraud' || category === 'Financial Fraud & Embezzlement' || category === 'Whistleblowing') {
     angerScore += 20;
+  } else if (category === 'Cybersecurity & Data Breach') {
+    fearScore += 10;
+    angerScore += 12;
+  } else if (category === 'Healthcare & Medical Malpractice') {
+    distressScore += 20;
+    fearScore += 10;
+  } else if (category === 'Retaliation & Extortion') {
+    fearScore += 25;
+    distressScore += 15;
+  } else if (category === 'Campus/School Incident') {
+    distressScore += 15;
   }
 
   // Cap raw scores to 100

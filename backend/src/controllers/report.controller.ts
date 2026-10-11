@@ -5,6 +5,7 @@ import { encrypt } from '../utils/encryption';
 import { analyzeReport } from '../utils/aiAnalyzer';
 import { analyzeEmotionAndRisk } from '../utils/emotionAnalyzer';
 import { commitReportToBlockchain, verifyReportBlockchainProof } from '../utils/blockchain';
+import { dispatchIncidentAlert } from '../utils/webhookDispatcher';
 
 export const submitReport = async (req: Request, res: Response) => {
   try {
@@ -109,6 +110,19 @@ export const submitReport = async (req: Request, res: Response) => {
         evidence: true
       }
     });
+
+    // 7.5 Asynchronously dispatch external SIEM/Slack/Discord webhook alert (zero PII)
+    dispatchIncidentAlert({
+      caseToken: report.caseToken,
+      category: report.category,
+      severity: report.severity,
+      aiUrgencyScore: report.aiUrgencyScore,
+      isHighRiskCrisis: emotionResult.isHighRiskCrisis,
+      crisisCategory: emotionResult.crisisCategory,
+      emotionPrimary: emotionResult.primaryEmotion,
+      evidenceCount: report.evidence?.length || 0,
+      timestamp: report.createdAt.toISOString()
+    }).catch(err => console.error('Background webhook dispatch warning:', err));
 
     // 8. Return ONLY the token, blockchain notary receipt, and support info. Zero PII.
     return res.status(201).json({

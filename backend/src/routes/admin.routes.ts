@@ -5,6 +5,12 @@ import {
   getRecentCases, 
   getEvidenceQueue, 
   updateEvidenceStatus,
+  updateCaseStatus,
+  logCaseAccess,
+  getAdminAuditLogs,
+  getWebhookSettings,
+  saveWebhookSettings,
+  testWebhook,
   getBlockchainLedger
 } from '../controllers/admin.controller';
 
@@ -15,8 +21,14 @@ router.use(verifyAdmin);
 
 router.get('/stats', getDashboardStats);
 router.get('/cases', getRecentCases);
+router.patch('/cases/:token/status', updateCaseStatus);
+router.post('/cases/:token/access-log', logCaseAccess);
 router.get('/evidence', getEvidenceQueue);
 router.patch('/evidence/:id/review', updateEvidenceStatus);
 router.get('/blockchain-ledger', getBlockchainLedger);
+router.get('/audit-logs', getAdminAuditLogs);
+router.get('/webhooks', getWebhookSettings);
+router.post('/webhooks', saveWebhookSettings);
+router.post('/webhooks/test', testWebhook);
 
 export default router;

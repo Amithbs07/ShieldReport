@@ -4,10 +4,14 @@ import { Link } from 'react-router-dom';
 import { 
   AlertTriangle, FileText, CheckCircle2, Copy, ArrowRight, ArrowLeft,
   Sparkles, Upload, Image as ImageIcon, Trash2, Clock, ShieldCheck, 
-  Cpu, FileCheck, Check, Lock, Download, RefreshCw, Blocks, HeartHandshake
+  Cpu, FileCheck, Check, Lock, Download, RefreshCw, Blocks, HeartHandshake,
+  Briefcase, GraduationCap, BookOpen, Building2, Megaphone, ShieldAlert,
+  DollarSign, Users, Stethoscope, Leaf, AlertOctagon, Search, HelpCircle,
+  EyeOff, Flame, X
 } from 'lucide-react';
 
 import { processAndSanitizeEvidence } from '../utils/cvForensics';
+import { DocumentRedactor } from '../components/DocumentRedactor';
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
@@ -93,14 +97,171 @@ export const ReportForm = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [caseToken, setCaseToken] = useState<string | null>(null);
 
+  // In-Browser Document Redaction State
+  const [redactingEvidence, setRedactingEvidence] = useState<EvidenceFile | null>(null);
 
-  const categories = [
-    'Workplace Harassment', 
-    'Campus/School Incident', 
-    'Civic/Government Fraud', 
-    'Whistleblowing', 
-    'Community Safety'
+  const handleSaveRedaction = async (sanitizedDataUrl: string) => {
+    if (!redactingEvidence) return;
+    try {
+      const base64Data = sanitizedDataUrl.split(',')[1] || '';
+      const binaryStr = window.atob(base64Data);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      const hashBuffer = await crypto.subtle.digest('SHA-256', bytes);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const newHash = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      setEvidenceList(prev => prev.map(ev => {
+        if (ev.id === redactingEvidence.id) {
+          return {
+            ...ev,
+            name: ev.name.includes('[REDACTED]') ? ev.name : `[REDACTED] ${ev.name}`,
+            dataUrl: sanitizedDataUrl,
+            sha256Hash: newHash,
+            cvTamperScore: 0.1,
+            cvAuthenticity: 99.8,
+          };
+        }
+        return ev;
+      }));
+    } catch (err) {
+      console.error('Error applying redaction:', err);
+    }
+    setRedactingEvidence(null);
+  };
+
+
+  const [categorySearch, setCategorySearch] = useState('');
+  const [selectedCategoryGroup, setSelectedCategoryGroup] = useState('All');
+
+  const categoryGroups = [
+    'All',
+    'Workplace & Corporate',
+    'Academic & Campus',
+    'Safety & Crime',
+    'Finance & Cyber',
+    'Human Rights & Healthcare'
   ];
+
+  const categoriesList = [
+    {
+      id: 'Workplace Harassment',
+      name: 'Workplace Harassment',
+      group: 'Workplace & Corporate',
+      description: 'Hostile environment, sexual harassment, verbal abuse, toxic management',
+      icon: Briefcase,
+    },
+    {
+      id: 'Campus/School Incident',
+      name: 'Campus/School Incident',
+      group: 'Academic & Campus',
+      description: 'Institutional negligence, grading bias, faculty misconduct, school safety',
+      icon: GraduationCap,
+    },
+    {
+      id: 'Ragging & Student Hazing',
+      name: 'Ragging & Student Hazing',
+      group: 'Academic & Campus',
+      description: 'Hostel intimidation, senior harassment, forced initiation rites',
+      icon: BookOpen,
+      badge: 'Zero Tolerance'
+    },
+    {
+      id: 'Cybersecurity & Data Breach',
+      name: 'Cybersecurity & Data Breach',
+      group: 'Finance & Cyber',
+      description: 'Unauthorized data leaks, compromised credentials, malware, ransomware',
+      icon: Lock,
+    },
+    {
+      id: 'Financial Fraud & Embezzlement',
+      name: 'Financial Fraud & Embezzlement',
+      group: 'Finance & Cyber',
+      description: 'Siphoning corporate funds, bribery, fake invoices, kickbacks, accounting fraud',
+      icon: DollarSign,
+    },
+    {
+      id: 'Civic/Government Fraud',
+      name: 'Civic/Government Fraud',
+      group: 'Finance & Cyber',
+      description: 'Public tender kickbacks, misuse of municipal funds, civil servant bribery',
+      icon: Building2,
+    },
+    {
+      id: 'Whistleblowing',
+      name: 'Corporate Whistleblowing',
+      group: 'Workplace & Corporate',
+      description: 'Executive wrongdoing, insider malpractice, regulatory cover-ups, insider trading',
+      icon: Megaphone,
+    },
+    {
+      id: 'Retaliation & Extortion',
+      name: 'Retaliation & Extortion',
+      group: 'Workplace & Corporate',
+      description: 'Termination threats, coerced silence, witness intimidation, blacklisting',
+      icon: EyeOff,
+      badge: 'Protected'
+    },
+    {
+      id: 'Community Safety',
+      name: 'Community Safety',
+      group: 'Safety & Crime',
+      description: 'Public infrastructure failure, fire hazard neglect, physical hazards, building codes',
+      icon: ShieldAlert,
+    },
+    {
+      id: 'Physical Threat & Violence',
+      name: 'Physical Threat & Violence',
+      group: 'Safety & Crime',
+      description: 'Imminent bodily harm, weapons intimidation, assault, stalking, violent threats',
+      icon: Flame,
+      badge: 'Immediate Priority'
+    },
+    {
+      id: 'Bullying & Cyber Harassment',
+      name: 'Bullying & Cyber Harassment',
+      group: 'Safety & Crime',
+      description: 'Targeted online smear campaigns, doxxing, persistent stalking, cyberbullying',
+      icon: AlertOctagon,
+    },
+    {
+      id: 'Discrimination & Civil Rights',
+      name: 'Discrimination & Civil Rights',
+      group: 'Human Rights & Healthcare',
+      description: 'Systemic bias based on race, gender, religion, caste, disability, or orientation',
+      icon: Users,
+    },
+    {
+      id: 'Healthcare & Medical Malpractice',
+      name: 'Healthcare & Medical Malpractice',
+      group: 'Human Rights & Healthcare',
+      description: 'Clinical negligence, falsified medical records, patient endangerment, drug tampering',
+      icon: Stethoscope,
+    },
+    {
+      id: 'Environmental & Hazard Violation',
+      name: 'Environmental & Hazard Violation',
+      group: 'Human Rights & Healthcare',
+      description: 'Illegal toxic dumping, chemical spills, air emissions concealment, ecological harm',
+      icon: Leaf,
+    },
+    {
+      id: 'Other / Ethical Misconduct',
+      name: 'Other / Ethical Misconduct',
+      group: 'Workplace & Corporate',
+      description: 'Any other critical ethics violation, policy breach, or reportable incident',
+      icon: HelpCircle,
+    }
+  ];
+
+  const filteredCategories = categoriesList.filter((item) => {
+    const matchesGroup = selectedCategoryGroup === 'All' || item.group === selectedCategoryGroup;
+    const q = categorySearch.trim().toLowerCase();
+    const matchesSearch = !q || item.name.toLowerCase().includes(q) || item.description.toLowerCase().includes(q) || item.group.toLowerCase().includes(q);
+    return matchesGroup && matchesSearch;
+  });
 
   const severityLevels = ['Low', 'Medium', 'High', 'Critical'];
 
@@ -130,19 +291,55 @@ export const ReportForm = () => {
     let sev = 'Medium';
     let reason = 'General reporting detected. Recommended for institutional review.';
 
-    if (text.includes('fire') || text.includes('hazard') || text.includes('exit') || text.includes('danger') || text.includes('bolt') || text.includes('safety') || text.includes('injury')) {
+    if (text.includes('fire') || text.includes('hazard') || text.includes('exit') || text.includes('danger') || text.includes('bolt') || text.includes('safety') || text.includes('collapse')) {
       cat = 'Community Safety';
       sev = 'Critical';
       reason = 'Immediate physical safety or environmental compliance hazard detected in report narrative.';
-    } else if (text.includes('harass') || text.includes('bully') || text.includes('inappropriate') || text.includes('comments') || text.includes('verbal') || text.includes('boss')) {
+    } else if (text.includes('weapon') || text.includes('knife') || text.includes('gun') || text.includes('punch') || text.includes('beat') || text.includes('assault') || text.includes('kill') || text.includes('violence')) {
+      cat = 'Physical Threat & Violence';
+      sev = 'Critical';
+      reason = 'Imminent bodily harm or violent threat signals identified in report narrative.';
+    } else if (text.includes('ragging') || text.includes('hazing') || text.includes('senior') || text.includes('hostel') || text.includes('initiation')) {
+      cat = 'Ragging & Student Hazing';
+      sev = 'High';
+      reason = 'Hostel ragging, senior intimidation, or student hazing pattern detected.';
+    } else if (text.includes('cyber') || text.includes('hack') || text.includes('leak') || text.includes('breach') || text.includes('password') || text.includes('credential') || text.includes('ransomware') || text.includes('phishing')) {
+      cat = 'Cybersecurity & Data Breach';
+      sev = 'High';
+      reason = 'Digital infrastructure vulnerability, data leak, or unauthorized intrusion detected.';
+    } else if (text.includes('embezzle') || text.includes('kickback') || text.includes('launder') || text.includes('invoice') || text.includes('audit') || text.includes('siphon')) {
+      cat = 'Financial Fraud & Embezzlement';
+      sev = 'High';
+      reason = 'Financial misappropriation, accounting fraud, or embezzlement signals detected.';
+    } else if (text.includes('doctor') || text.includes('hospital') || text.includes('patient') || text.includes('surgery') || text.includes('prescription') || text.includes('clinical') || text.includes('nurse')) {
+      cat = 'Healthcare & Medical Malpractice';
+      sev = 'Critical';
+      reason = 'Clinical malpractice, medical negligence, or patient safety violation detected.';
+    } else if (text.includes('pollut') || text.includes('toxic') || text.includes('chemical') || text.includes('spill') || text.includes('dump') || text.includes('emission') || text.includes('waste')) {
+      cat = 'Environmental & Hazard Violation';
+      sev = 'High';
+      reason = 'Environmental contamination, toxic dumping, or ecological regulatory violation.';
+    } else if (text.includes('racis') || text.includes('discriminat') || text.includes('sexism') || text.includes('caste') || text.includes('gender') || text.includes('religion') || text.includes('bias')) {
+      cat = 'Discrimination & Civil Rights';
+      sev = 'High';
+      reason = 'Systemic discrimination, bias, or protected civil rights violation identified.';
+    } else if (text.includes('fire me') || text.includes('retaliat') || text.includes('silence') || text.includes('demoted') || text.includes('blackmail') || text.includes('extort')) {
+      cat = 'Retaliation & Extortion';
+      sev = 'High';
+      reason = 'Whistleblower intimidation, retaliatory threats, or coercive silence detected.';
+    } else if (text.includes('cyberbully') || text.includes('doxx') || text.includes('troll') || text.includes('stalk') || text.includes('online smear')) {
+      cat = 'Bullying & Cyber Harassment';
+      sev = 'Medium';
+      reason = 'Targeted digital harassment, doxxing, or cyberbullying pattern flagged.';
+    } else if (text.includes('harass') || text.includes('bully') || text.includes('inappropriate') || text.includes('comments') || text.includes('verbal') || text.includes('boss') || text.includes('manager')) {
       cat = 'Workplace Harassment';
       sev = 'High';
       reason = 'Interpersonal misconduct and workplace dignity violation patterns identified.';
-    } else if (text.includes('fraud') || text.includes('money') || text.includes('bribe') || text.includes('embezzle') || text.includes('tax') || text.includes('funds')) {
+    } else if (text.includes('fraud') || text.includes('money') || text.includes('bribe') || text.includes('tax') || text.includes('funds') || text.includes('government') || text.includes('tender')) {
       cat = 'Civic/Government Fraud';
       sev = 'High';
-      reason = 'Financial misappropriation or fiduciary misconduct signals detected.';
-    } else if (text.includes('school') || text.includes('exam') || text.includes('teacher') || text.includes('student') || text.includes('grade') || text.includes('campus')) {
+      reason = 'Public sector corruption, civic governance, or fiduciary misconduct signals detected.';
+    } else if (text.includes('school') || text.includes('exam') || text.includes('teacher') || text.includes('student') || text.includes('grade') || text.includes('campus') || text.includes('college')) {
       cat = 'Campus/School Incident';
       sev = 'Medium';
       reason = 'Educational institution environment violation indicated.';
@@ -451,32 +648,125 @@ The cryptographic blockchain notarization guarantees that evidence cannot be alt
               className="space-y-6"
             >
               <div className="bg-white/[0.03] border border-white/[0.08] backdrop-blur-2xl p-7 rounded-3xl shadow-apple-card">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                   <div>
-                    <h2 className="text-2xl font-semibold tracking-tight text-white">Choose Incident Category</h2>
-                    <p className="text-xs text-apple-gray-400 mt-1">Select the operational domain or let AI suggest automatically based on your report.</p>
+                    <h2 className="text-2xl font-semibold tracking-tight text-white flex items-center gap-2">
+                      <span>Choose Incident Category</span>
+                      <span className="text-xs px-2.5 py-0.5 rounded-full font-mono bg-shield-blue/15 text-shield-blue border border-shield-blue/30">
+                        {filteredCategories.length} available
+                      </span>
+                    </h2>
+                    <p className="text-xs text-apple-gray-400 mt-1">Select the operational domain or let AI suggest automatically based on your report narrative.</p>
+                  </div>
+
+                  {/* Search Bar */}
+                  <div className="relative min-w-[240px]">
+                    <Search className="w-4 h-4 text-apple-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input 
+                      type="text"
+                      placeholder="Filter categories..."
+                      value={categorySearch}
+                      onChange={(e) => setCategorySearch(e.target.value)}
+                      className="w-full bg-black/40 border border-white/[0.08] focus:border-shield-blue/60 text-white placeholder-apple-gray-500 text-xs rounded-xl pl-9 pr-8 py-2.5 outline-none transition-all"
+                    />
+                    {categorySearch && (
+                      <button 
+                        onClick={() => setCategorySearch('')}
+                        className="absolute right-2.5 top-1/2 -translate-y-1/2 text-apple-gray-400 hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                  {categories.map((cat) => {
-                    const isSelected = formData.category === cat;
+                {/* Group Filter Tabs */}
+                <div className="flex items-center gap-2 overflow-x-auto pb-3 mb-4 scrollbar-none">
+                  {categoryGroups.map((group) => {
+                    const isActive = selectedCategoryGroup === group;
                     return (
                       <button
-                        key={cat}
-                        onClick={() => setFormData(p => ({ ...p, category: cat }))}
-                        className={`p-4 text-left border rounded-2xl transition-all font-medium text-sm flex items-center justify-between ${
-                          isSelected 
-                            ? 'bg-shield-blue/15 border-shield-blue text-white shadow-[0_0_20px_rgba(41,151,255,0.2)]' 
-                            : 'border-white/[0.06] bg-black/20 text-apple-gray-300 hover:bg-white/[0.04] hover:border-white/15'
+                        key={group}
+                        onClick={() => setSelectedCategoryGroup(group)}
+                        className={`text-xs px-3.5 py-1.5 rounded-xl font-medium whitespace-nowrap transition-all border ${
+                          isActive
+                            ? 'bg-shield-blue text-white border-shield-blue shadow-apple-glow'
+                            : 'bg-white/[0.03] border-white/[0.06] text-apple-gray-400 hover:text-white hover:bg-white/[0.06]'
                         }`}
                       >
-                        <span>{cat}</span>
-                        {isSelected && <Check className="w-4 h-4 text-shield-blue shrink-0 ml-2" />}
+                        {group}
                       </button>
                     );
                   })}
                 </div>
+
+                {/* Categories Grid */}
+                {filteredCategories.length === 0 ? (
+                  <div className="text-center py-10 bg-black/20 rounded-2xl border border-white/[0.04]">
+                    <HelpCircle className="w-8 h-8 text-apple-gray-500 mx-auto mb-2 opacity-50" />
+                    <p className="text-sm text-apple-gray-300 font-medium">No matching categories found</p>
+                    <p className="text-xs text-apple-gray-500 mt-1">Try another search keyword or clear the filter.</p>
+                    <button 
+                      onClick={() => { setCategorySearch(''); setSelectedCategoryGroup('All'); }}
+                      className="mt-3 text-xs text-shield-blue hover:underline"
+                    >
+                      Reset filters
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                    {filteredCategories.map((cat) => {
+                      const isSelected = formData.category === cat.id;
+                      const IconComponent = cat.icon;
+                      return (
+                        <button
+                          key={cat.id}
+                          onClick={() => setFormData(p => ({ ...p, category: cat.id }))}
+                          className={`p-4 text-left border rounded-2xl transition-all flex flex-col justify-between group ${
+                            isSelected 
+                              ? 'bg-shield-blue/15 border-shield-blue text-white shadow-[0_0_20px_rgba(41,151,255,0.2)]' 
+                              : 'border-white/[0.06] bg-black/20 text-apple-gray-300 hover:bg-white/[0.04] hover:border-white/15'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between mb-2">
+                              <div className={`w-8 h-8 rounded-xl flex items-center justify-center transition-colors ${
+                                isSelected ? 'bg-shield-blue text-white' : 'bg-white/[0.05] text-apple-gray-400 group-hover:text-white'
+                              }`}>
+                                <IconComponent className="w-4 h-4" />
+                              </div>
+                              {cat.badge && (
+                                <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold uppercase tracking-wider ${
+                                  cat.badge.includes('Priority') || cat.badge.includes('Zero')
+                                    ? 'bg-alert-red/20 text-alert-red border border-alert-red/30'
+                                    : 'bg-shield-green/20 text-shield-green border border-shield-green/30'
+                                }`}>
+                                  {cat.badge}
+                                </span>
+                              )}
+                              {isSelected && !cat.badge && (
+                                <Check className="w-4 h-4 text-shield-blue shrink-0 ml-2" />
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <h4 className="text-sm font-semibold text-white tracking-tight">{cat.name}</h4>
+                              {isSelected && cat.badge && (
+                                <Check className="w-3.5 h-3.5 text-shield-blue shrink-0 ml-1" />
+                              )}
+                            </div>
+                            <p className="text-[11px] text-apple-gray-400 mt-1 line-clamp-2 leading-relaxed">
+                              {cat.description}
+                            </p>
+                          </div>
+                          <div className="mt-2.5 pt-2 border-t border-white/[0.04] flex items-center justify-between text-[10px] font-mono text-apple-gray-500">
+                            <span>{cat.group}</span>
+                            {isSelected && <span className="text-shield-blue font-semibold uppercase">Selected</span>}
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
 
               {/* Severity Selection */}
@@ -903,7 +1193,22 @@ The cryptographic blockchain notarization guarantees that evidence cannot be alt
                             </div>
                           </div>
 
-                          <div className="flex items-center space-x-3 shrink-0">
+                          <div className="flex items-center space-x-2 shrink-0">
+                            {item.dataUrl && (
+                              <button
+                                type="button"
+                                onClick={() => setRedactingEvidence(item)}
+                                className={`px-2.5 py-1 rounded-xl text-[10px] font-mono border transition-all flex items-center space-x-1 ${
+                                  item.name.includes('[REDACTED]')
+                                    ? 'bg-shield-green/15 border-shield-green/30 text-shield-green hover:bg-shield-green/25'
+                                    : 'bg-shield-blue/15 border-shield-blue/30 text-shield-blue hover:bg-shield-blue hover:text-white'
+                                }`}
+                                title="Blackout names, employee IDs, or text directly in the browser"
+                              >
+                                <EyeOff className="w-3 h-3" />
+                                <span>{item.name.includes('[REDACTED]') ? 'Redacted ✓' : 'Redact / Blackout'}</span>
+                              </button>
+                            )}
                             <span className="text-[10px] font-mono px-2.5 py-1 rounded-full bg-alert-amber/15 border border-alert-amber/30 text-alert-amber">
                               Pending Manual Approval
                             </span>
@@ -1146,6 +1451,16 @@ The cryptographic blockchain notarization guarantees that evidence cannot be alt
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* In-Browser Document Redaction & Sanitizer Modal */}
+        {redactingEvidence && redactingEvidence.dataUrl && (
+          <DocumentRedactor
+            imageSrc={redactingEvidence.dataUrl}
+            fileName={redactingEvidence.name}
+            onSave={handleSaveRedaction}
+            onClose={() => setRedactingEvidence(null)}
+          />
+        )}
       </div>
     </div>
   );

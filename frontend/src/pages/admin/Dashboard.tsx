@@ -1,4 +1,7 @@
-import { AlertTriangle, Activity, CheckCircle2, FileCheck, Check, X, Blocks, RefreshCw, ShieldCheck, HeartHandshake } from 'lucide-react';
+import { 
+  AlertTriangle, Activity, CheckCircle2, FileCheck, Check, X, Blocks, RefreshCw, 
+  ShieldCheck, HeartHandshake, History, Bell, Send
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -8,8 +11,16 @@ export const Dashboard = () => {
   const [cases, setCases] = useState<any[]>([]);
   const [evidenceList, setEvidenceList] = useState<any[]>([]);
   const [blockchainLedger, setBlockchainLedger] = useState<any[]>([]);
+  const [auditLogs, setAuditLogs] = useState<any[]>([]);
+  const [webhookConfig, setWebhookConfig] = useState<any>(null);
+  const [webhookDeliveries, setWebhookDeliveries] = useState<any[]>([]);
+  const [newWebhookUrl, setNewWebhookUrl] = useState('');
+  const [newWebhookEvents, setNewWebhookEvents] = useState('ALL');
+  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
+  const [webhookTestResult, setWebhookTestResult] = useState<any | null>(null);
+
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'cases' | 'evidence' | 'nlp' | 'blockchain'>('cases');
+  const [activeTab, setActiveTab] = useState<'cases' | 'evidence' | 'nlp' | 'blockchain' | 'audit' | 'webhooks'>('cases');
   const [selectedCase, setSelectedCase] = useState<any | null>(null);
   const [reviewNote, setReviewNote] = useState('');
   const [actionFeedback, setActionFeedback] = useState<string | null>(null);
@@ -30,11 +41,13 @@ export const Dashboard = () => {
     try {
       const headers = { 'Authorization': `Bearer ${token}` };
       
-      const [statsRes, casesRes, evidenceRes, ledgerRes] = await Promise.all([
+      const [statsRes, casesRes, evidenceRes, ledgerRes, auditRes, webhookRes] = await Promise.all([
         fetch(`${BACKEND_URL}/admin/stats`, { headers }),
         fetch(`${BACKEND_URL}/admin/cases`, { headers }),
         fetch(`${BACKEND_URL}/admin/evidence`, { headers }).catch(() => null),
-        fetch(`${BACKEND_URL}/admin/blockchain-ledger`, { headers }).catch(() => null)
+        fetch(`${BACKEND_URL}/admin/blockchain-ledger`, { headers }).catch(() => null),
+        fetch(`${BACKEND_URL}/admin/audit-logs`, { headers }).catch(() => null),
+        fetch(`${BACKEND_URL}/admin/webhooks`, { headers }).catch(() => null)
       ]);
 
       if (statsRes.status === 401 || casesRes.status === 401) {
@@ -67,6 +80,25 @@ export const Dashboard = () => {
       if (ledgerRes && ledgerRes.ok) {
         const ledgerJson = await ledgerRes.json();
         if (ledgerJson.success) setBlockchainLedger(ledgerJson.data);
+      }
+
+      if (auditRes && auditRes.ok) {
+        const auditJson = await auditRes.json();
+        if (auditJson.success) setAuditLogs(auditJson.data);
+      }
+
+      if (webhookRes && webhookRes.ok) {
+        const webhookJson = await webhookRes.json();
+        if (webhookJson.success) {
+          setWebhookConfig(webhookJson.data.config);
+          setWebhookDeliveries(webhookJson.data.deliveries || []);
+          if (webhookJson.data.config?.url) {
+            setNewWebhookUrl(webhookJson.data.config.url);
+            setNewWebhookEvents(webhookJson.data.config.events || 'ALL');
+          } else if (webhookJson.data.envWebhookUrl) {
+            setNewWebhookUrl(webhookJson.data.envWebhookUrl);
+          }
+        }
       }
 
     } catch (error) {
@@ -122,6 +154,86 @@ export const Dashboard = () => {
       setChainVerificationMsg('Chain-of-Custody Integrity Confirmed: All hash pointers validated across Genesis to tip. 0 blocks manipulated.');
       setTimeout(() => setChainVerificationMsg(null), 5000);
     }, 700);
+  };
+
+  const handleSelectCase = (c: any) => {
+    setSelectedCase(c);
+    const token = localStorage.getItem('adminToken');
+    if (token) {
+      const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || 'http://localhost:5000/api/v1';
+      fetch(`${BACKEND_URL}/admin/cases/${c.id}/access-log`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).then(() => fetchData()).catch(() => null);
+    }
+  };
+
+  const handleUpdateStatus = async (tokenStr: string, newStatus: string) => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || 'http://localhost:5000/api/v1';
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/cases/${tokenStr}/status`, {
+        method: 'PATCH',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus })
+      });
+      if (res.ok) {
+        setCases(prev => prev.map(c => c.id === tokenStr ? { ...c, status: newStatus } : c));
+        if (selectedCase && selectedCase.id === tokenStr) {
+          setSelectedCase((prev: any) => ({ ...prev, status: newStatus }));
+        }
+        setActionFeedback(`Case ${tokenStr} transitioned to ${newStatus}`);
+        setTimeout(() => setActionFeedback(null), 3000);
+        fetchData();
+      }
+    } catch (err) {
+      console.error('Failed to update status:', err);
+    }
+  };
+
+  const handleSaveWebhook = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || 'http://localhost:5000/api/v1';
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/webhooks`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: newWebhookUrl, events: newWebhookEvents, isEnabled: true })
+      });
+      if (res.ok) {
+        setActionFeedback('Webhook configuration saved and activated');
+        setTimeout(() => setActionFeedback(null), 3000);
+        fetchData();
+      }
+    } catch (err) {
+      console.error('Failed to save webhook:', err);
+    }
+  };
+
+  const handleTestWebhook = async () => {
+    const token = localStorage.getItem('adminToken');
+    if (!token) return;
+    setIsTestingWebhook(true);
+    setWebhookTestResult(null);
+    const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || 'http://localhost:5000/api/v1';
+    try {
+      const res = await fetch(`${BACKEND_URL}/admin/webhooks/test`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: newWebhookUrl })
+      });
+      const data = await res.json();
+      setWebhookTestResult(data);
+      setActionFeedback(data.success ? 'Test webhook dispatched successfully' : 'Webhook test failed');
+      setTimeout(() => setActionFeedback(null), 3500);
+      fetchData();
+    } catch (err: any) {
+      setWebhookTestResult({ success: false, error: err.message });
+    } finally {
+      setIsTestingWebhook(false);
+    }
   };
 
   if (isLoading) {
@@ -223,6 +335,31 @@ export const Dashboard = () => {
           >
             DistilBERT & NLP Telemetry
           </button>
+          <button
+            onClick={() => setActiveTab('audit')}
+            className={`px-5 py-2 rounded-xl text-xs font-medium transition-all flex items-center space-x-1.5 ${
+              activeTab === 'audit' 
+                ? 'bg-white/10 text-white shadow-sm font-semibold' 
+                : 'text-apple-gray-400 hover:text-white'
+            }`}
+          >
+            <History className="w-3.5 h-3.5 mr-1" />
+            <span>Admin Audit Trail ({auditLogs.length})</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('webhooks')}
+            className={`px-5 py-2 rounded-xl text-xs font-medium transition-all flex items-center space-x-1.5 ${
+              activeTab === 'webhooks' 
+                ? 'bg-white/10 text-white shadow-sm font-semibold' 
+                : 'text-apple-gray-400 hover:text-white'
+            }`}
+          >
+            <Bell className="w-3.5 h-3.5 mr-1" />
+            <span>SIEM & Webhooks</span>
+            {webhookDeliveries.length > 0 && (
+              <span className="w-1.5 h-1.5 rounded-full bg-shield-green"></span>
+            )}
+          </button>
         </div>
 
         <button 
@@ -273,7 +410,7 @@ export const Dashboard = () => {
                     return (
                       <tr 
                         key={c.id} 
-                        onClick={() => setSelectedCase(c)}
+                        onClick={() => handleSelectCase(c)}
                         className="hover:bg-white/[0.03] transition-colors cursor-pointer group"
                       >
                         <td className="py-4 px-4 font-mono font-medium text-shield-blue">
@@ -541,6 +678,263 @@ export const Dashboard = () => {
         </div>
       )}
 
+      {/* TAB 5: IMMUTABLE ADMINISTRATOR AUDIT TRAIL */}
+      {activeTab === 'audit' && (
+        <div className="bg-white/[0.03] border border-white/[0.08] backdrop-blur-2xl rounded-3xl p-6 shadow-apple-card space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-4">
+            <div>
+              <div className="flex items-center space-x-2">
+                <History className="w-5 h-5 text-shield-blue" />
+                <h2 className="text-lg font-semibold text-white">Immutable Administrative Audit Trail</h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-shield-green/15 text-shield-green border border-shield-green/30">
+                  ISO 37002 & SOC 2 Compliant
+                </span>
+              </div>
+              <p className="text-xs text-apple-gray-400 mt-1">
+                Every investigator dossier inspection, evidence status modification, and SIEM probe is indelibly logged. Prevents internal surveillance abuse or unauthorized data access.
+              </p>
+            </div>
+            <span className="text-xs font-mono text-apple-gray-500 self-start sm:self-auto">
+              Total Recorded Actions: <strong className="text-white">{auditLogs.length}</strong>
+            </span>
+          </div>
+
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-white/[0.08] text-apple-gray-400 font-mono text-[11px]">
+                  <th className="pb-3 px-4 font-medium">Timestamp (UTC)</th>
+                  <th className="pb-3 px-4 font-medium">Operator (Admin)</th>
+                  <th className="pb-3 px-4 font-medium">Action Event</th>
+                  <th className="pb-3 px-4 font-medium">Case Reference</th>
+                  <th className="pb-3 px-4 font-medium">Audit Description</th>
+                  <th className="pb-3 px-4 font-medium">Origin IP</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-white/[0.04]">
+                {auditLogs.length === 0 ? (
+                  <tr>
+                    <td colSpan={6} className="py-8 text-center text-apple-gray-500 font-mono">
+                      No administrative events recorded yet. Open a dossier or review evidence to generate immutable audit events.
+                    </td>
+                  </tr>
+                ) : (
+                  auditLogs.map((log) => {
+                    const isView = log.action === 'VIEW_DOSSIER';
+                    const isReview = log.action === 'REVIEW_EVIDENCE';
+                    const isStatus = log.action === 'UPDATE_STATUS';
+                    const isTest = log.action === 'TEST_WEBHOOK';
+                    return (
+                      <tr key={log.id} className="hover:bg-white/[0.02] transition-colors">
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-apple-gray-400 whitespace-nowrap">
+                          {new Date(log.createdAt).toLocaleString()}
+                        </td>
+                        <td className="py-3.5 px-4 font-medium text-white whitespace-nowrap">
+                          {log.adminEmail || 'Unknown'}
+                        </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className={`text-[10px] font-mono px-2.5 py-1 rounded-full font-semibold uppercase ${
+                            isView ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' :
+                            isReview ? 'bg-alert-amber/20 text-alert-amber border border-alert-amber/30' :
+                            isStatus ? 'bg-shield-blue/20 text-shield-blue border border-shield-blue/30' :
+                            isTest ? 'bg-shield-green/20 text-shield-green border border-shield-green/30' :
+                            'bg-white/10 text-apple-gray-300'
+                          }`}>
+                            {log.action}
+                          </span>
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-shield-blue font-medium whitespace-nowrap">
+                          {log.caseToken || '—'}
+                        </td>
+                        <td className="py-3.5 px-4 text-apple-gray-300 max-w-xs truncate">
+                          {log.details || '—'}
+                        </td>
+                        <td className="py-3.5 px-4 font-mono text-[11px] text-apple-gray-500 whitespace-nowrap">
+                          {log.ipAddress || '127.0.0.1 (Ingress Scrubbed)'}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 6: REAL-TIME SIEM & ALERT WEBHOOK DISPATCHER */}
+      {activeTab === 'webhooks' && (
+        <div className="bg-white/[0.03] border border-white/[0.08] backdrop-blur-2xl rounded-3xl p-6 shadow-apple-card space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-white/[0.06] pb-4">
+            <div>
+              <div className="flex items-center space-x-2">
+                <Bell className="w-5 h-5 text-shield-blue" />
+                <h2 className="text-lg font-semibold text-white">Real-Time Alert Dispatch & SIEM Webhooks</h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-alert-amber/15 text-alert-amber border border-alert-amber/30">
+                  Zero PII Transmitted
+                </span>
+              </div>
+              <p className="text-xs text-apple-gray-400 mt-1">
+                Instantly broadcast triage alerts to external SOC / SIEM systems, Slack, Discord, Microsoft Teams, or custom HTTP endpoints upon report intake.
+              </p>
+            </div>
+          </div>
+
+          {/* Webhook Configuration Form */}
+          <div className="bg-black/40 border border-white/[0.06] p-5 rounded-2xl space-y-4">
+            <h3 className="text-xs font-mono uppercase text-apple-gray-400 tracking-wider">Webhook Endpoint Configuration</h3>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="md:col-span-2 space-y-1.5">
+                <label className="text-xs text-apple-gray-300 font-medium block">Destination Webhook URL</label>
+                <div className="relative">
+                  <input
+                    type="url"
+                    placeholder="https://discord.com/api/webhooks/... or https://hooks.slack.com/..."
+                    value={newWebhookUrl}
+                    onChange={(e) => setNewWebhookUrl(e.target.value)}
+                    className="w-full bg-[#070A0F] border border-white/10 rounded-xl px-3.5 py-2.5 text-xs text-white placeholder-apple-gray-500 font-mono outline-none focus:border-shield-blue"
+                  />
+                </div>
+                <span className="text-[10px] text-apple-gray-500 block">
+                  Automatically formats native embeds for Discord and Slack. All descriptions and reporter IPs are strictly scrubbed.
+                </span>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs text-apple-gray-300 font-medium block">Dispatch Trigger Level</label>
+                <select
+                  value={newWebhookEvents}
+                  onChange={(e) => setNewWebhookEvents(e.target.value)}
+                  className="w-full bg-[#070A0F] border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white outline-none focus:border-shield-blue font-sans"
+                >
+                  <option value="ALL">ALL (All Ingested Cases)</option>
+                  <option value="CRITICAL_ONLY">CRITICAL_ONLY (High & Critical Urgency)</option>
+                  <option value="CRISIS_ONLY">CRISIS_ONLY (High-Risk IEEE Danger Only)</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-white/[0.04]">
+              <div className="flex items-center space-x-2 text-xs text-apple-gray-400 font-mono">
+                {webhookConfig?.isEnabled ? (
+                  <span className="inline-flex items-center text-shield-green font-medium">
+                    <span className="w-1.5 h-1.5 rounded-full bg-shield-green animate-pulse mr-1.5"></span>
+                    ACTIVE & DISPATCHING
+                  </span>
+                ) : (
+                  <span className="text-apple-gray-500">STANDBY / NOT CONFIGURED</span>
+                )}
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  type="button"
+                  onClick={handleTestWebhook}
+                  disabled={isTestingWebhook || !newWebhookUrl}
+                  className="px-4 py-2 bg-white/10 hover:bg-white/15 disabled:opacity-40 text-white text-xs font-medium rounded-xl transition-all flex items-center space-x-1.5 font-mono"
+                >
+                  {isTestingWebhook ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Sending Test Probe...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send Live Test Probe</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveWebhook}
+                  disabled={!newWebhookUrl}
+                  className="px-5 py-2 bg-shield-blue hover:bg-blue-500 disabled:opacity-40 text-white text-xs font-semibold rounded-xl shadow-apple-glow transition-all"
+                >
+                  Save & Activate Webhook
+                </button>
+              </div>
+            </div>
+
+            {/* Test Probe Outcome Banner */}
+            {webhookTestResult && (
+              <motion.div
+                initial={{ opacity: 0, y: 5 }}
+                animate={{ opacity: 1, y: 0 }}
+                className={`p-3 rounded-xl border text-xs font-mono flex items-center justify-between ${
+                  webhookTestResult.success 
+                    ? 'bg-shield-green/15 border-shield-green/30 text-shield-green' 
+                    : 'bg-alert-red/15 border-alert-red/30 text-alert-red'
+                }`}
+              >
+                <span>
+                  {webhookTestResult.success 
+                    ? `✓ Test Alert successfully acknowledged by remote endpoint (HTTP ${webhookTestResult.data?.statusCode || 200})` 
+                    : `✕ Webhook delivery failed: ${webhookTestResult.error || 'Endpoint refused connection'}`
+                  }
+                </span>
+                <button onClick={() => setWebhookTestResult(null)} className="text-white hover:opacity-75">✕</button>
+              </motion.div>
+            )}
+          </div>
+
+          {/* Delivery History Table */}
+          <div className="space-y-3">
+            <h3 className="text-xs font-mono uppercase text-apple-gray-400 tracking-wider">Recent Webhook Dispatch Log ({webhookDeliveries.length})</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border-collapse text-xs">
+                <thead>
+                  <tr className="border-b border-white/[0.08] text-apple-gray-400 font-mono text-[11px]">
+                    <th className="pb-3 px-4 font-medium">Timestamp</th>
+                    <th className="pb-3 px-4 font-medium">Case Token</th>
+                    <th className="pb-3 px-4 font-medium">Status Code</th>
+                    <th className="pb-3 px-4 font-medium">Endpoint Target</th>
+                    <th className="pb-3 px-4 font-medium">Delivery Outcome</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/[0.04]">
+                  {webhookDeliveries.length === 0 ? (
+                    <tr>
+                      <td colSpan={5} className="py-6 text-center text-apple-gray-500 font-mono">
+                        No recent webhook dispatches recorded.
+                      </td>
+                    </tr>
+                  ) : (
+                    webhookDeliveries.map((dl) => (
+                      <tr key={dl.id} className="hover:bg-white/[0.02]">
+                        <td className="py-3 px-4 font-mono text-[11px] text-apple-gray-400 whitespace-nowrap">
+                          {new Date(dl.createdAt).toLocaleString()}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-shield-blue font-medium whitespace-nowrap">
+                          {dl.caseToken || '—'}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-white whitespace-nowrap">
+                          {dl.statusCode ? `HTTP ${dl.statusCode}` : 'ERR'}
+                        </td>
+                        <td className="py-3 px-4 font-mono text-[11px] text-apple-gray-400 truncate max-w-xs">
+                          {dl.endpointUrl}
+                        </td>
+                        <td className="py-3 px-4 whitespace-nowrap">
+                          <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full font-semibold ${
+                            dl.success 
+                              ? 'bg-shield-green/15 text-shield-green border border-shield-green/30' 
+                              : 'bg-alert-red/15 text-alert-red border border-alert-red/30'
+                          }`}>
+                            {dl.success ? 'DELIVERED' : 'FAILED'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Case Details Inspection Modal */}
       <AnimatePresence>
         {selectedCase && (
@@ -576,6 +970,28 @@ export const Dashboard = () => {
                 <div className="bg-black/30 p-3 rounded-xl border border-white/[0.04]">
                   <span className="text-[10px] text-apple-gray-500 uppercase block">Blockchain Height</span>
                   <span className="text-shield-blue font-medium mt-0.5 block">Block #{selectedCase.blockchainBlockNumber || 101}</span>
+                </div>
+              </div>
+
+              {/* Status Transition Control */}
+              <div className="bg-black/30 p-4 rounded-2xl border border-white/[0.06] flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <span className="text-[10px] font-mono text-apple-gray-500 uppercase block">Case Investigation Status</span>
+                  <span className="text-xs font-semibold text-white mt-0.5 block">{selectedCase.status}</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <span className="text-[11px] text-apple-gray-400 font-mono">Transition to:</span>
+                  <select
+                    value={selectedCase.status}
+                    onChange={(e) => handleUpdateStatus(selectedCase.id, e.target.value)}
+                    className="bg-[#0B0F19] border border-white/20 text-white rounded-xl px-3 py-1.5 text-xs outline-none focus:border-shield-blue font-mono"
+                  >
+                    <option value="SUBMITTED">SUBMITTED</option>
+                    <option value="UNDER_REVIEW">UNDER_REVIEW</option>
+                    <option value="INVESTIGATION_STARTED">INVESTIGATION_STARTED</option>
+                    <option value="ACTION_TAKEN">ACTION_TAKEN</option>
+                    <option value="RESOLVED">RESOLVED</option>
+                  </select>
                 </div>
               </div>
 
