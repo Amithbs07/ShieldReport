@@ -536,11 +536,20 @@ export const ReportForm = () => {
     };
 
     try {
-      const res = await fetch(`${BACKEND_URL}/reports/submit`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${BACKEND_URL}/reports/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      } catch {
+        res = await fetch('/api/v1/reports/submit', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+      }
       const data = await res.json();
       if (res.ok && data.success) {
         setCaseToken(data.data.caseToken);

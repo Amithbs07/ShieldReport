@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Shield, Lock, Activity, ArrowLeft, KeyRound } from 'lucide-react';
+import { Shield, Lock, Activity, ArrowLeft } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export const Login = () => {
@@ -18,15 +18,32 @@ export const Login = () => {
 
     try {
       const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || 'http://localhost:5000/api/v1';
-      const res = await fetch(`${BACKEND_URL}/auth/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password })
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${BACKEND_URL}/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password })
+        });
+      } catch {
+        // Fallback to local Vite proxy if direct localhost:5000 has network/CORS issues
+        res = await fetch('/api/v1/auth/login', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email, password })
+        });
+      }
 
-      const data = await res.json();
+      let data: any = {};
+      try {
+        data = await res.json();
+      } catch {
+        // non-json response
+      }
       
       if (res.ok && data.success) {
         localStorage.setItem('adminToken', data.token);
@@ -36,15 +53,10 @@ export const Login = () => {
         setError(data.error || 'Invalid credentials');
       }
     } catch {
-      setError('A network error occurred while connecting to the server.');
+      setError('A network error occurred while connecting to the server. Please check backend connection.');
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handlePrefillDemo = () => {
-    setEmail('investigator@acme.com');
-    setPassword('admin123');
   };
 
   return (
@@ -82,7 +94,7 @@ export const Login = () => {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 className="w-full bg-black/40 border border-white/[0.1] rounded-2xl px-4 py-3 text-white placeholder-apple-gray-600 focus:outline-none focus:border-shield-blue text-sm transition-all shadow-inner"
-                placeholder="investigator@acme.com"
+                placeholder="name@organization.com"
               />
             </div>
 
@@ -109,19 +121,6 @@ export const Login = () => {
               {isLoading ? 'Authenticating Session...' : 'Authenticate Investigator Session'}
             </button>
           </form>
-
-          {/* Quick Demo Credentials Assistant */}
-          <div className="mt-6 pt-5 border-t border-white/[0.06] flex items-center justify-between text-xs">
-            <span className="text-apple-gray-500 font-mono text-[11px]">Demo: investigator@acme.com</span>
-            <button
-              onClick={handlePrefillDemo}
-              type="button"
-              className="text-shield-blue hover:text-blue-400 font-mono text-[11px] flex items-center space-x-1"
-            >
-              <KeyRound className="w-3 h-3 mr-1" />
-              <span>Auto-Fill Demo Credentials</span>
-            </button>
-          </div>
         </div>
 
         <div className="text-center mt-6">

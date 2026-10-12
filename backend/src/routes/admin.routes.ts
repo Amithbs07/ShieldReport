@@ -11,7 +11,9 @@ import {
   getWebhookSettings,
   saveWebhookSettings,
   testWebhook,
-  getBlockchainLedger
+  getBlockchainLedger,
+  getCaseMessages,
+  sendCaseMessage
 } from '../controllers/admin.controller';
 
 const router = Router();
@@ -23,6 +25,8 @@ router.get('/stats', getDashboardStats);
 router.get('/cases', getRecentCases);
 router.patch('/cases/:token/status', updateCaseStatus);
 router.post('/cases/:token/access-log', logCaseAccess);
+router.get('/cases/:caseToken/messages', getCaseMessages);
+router.post('/cases/:caseToken/messages', sendCaseMessage);
 router.get('/evidence', getEvidenceQueue);
 router.patch('/evidence/:id/review', updateEvidenceStatus);
 router.get('/blockchain-ledger', getBlockchainLedger);

@@ -4,7 +4,7 @@ import {
   Search, ShieldAlert, ArrowRight, Clock, ShieldCheck, FileCheck, Lock, 
   Blocks, CheckCircle2, Download, RefreshCw 
 } from 'lucide-react';
-
+import { AnonymousChat } from '../components/AnonymousChat';
 
 export const Track = () => {
   const [token, setToken] = useState('');
@@ -28,7 +28,12 @@ export const Track = () => {
     
     const BACKEND_URL = (import.meta as any).env.VITE_BACKEND_URL || 'http://localhost:5000/api/v1';
     try {
-      const res = await fetch(`${BACKEND_URL}/reports/status/${cleanToken}`);
+      let res: Response;
+      try {
+        res = await fetch(`${BACKEND_URL}/reports/status/${cleanToken}`);
+      } catch {
+        res = await fetch(`/api/v1/reports/status/${cleanToken}`);
+      }
       const data = await res.json();
       if (res.ok && data.success) {
         setCaseData(data.data);
@@ -432,6 +437,9 @@ export const Track = () => {
                   </div>
                 )}
               </div>
+
+              {/* Anonymous Cryptographic Chat with Investigator */}
+              <AnonymousChat caseToken={caseData.caseToken} senderRole="REPORTER" />
 
               {/* Active Notice */}
               <div className="bg-shield-blue/10 border border-shield-blue/20 rounded-2xl p-4 flex items-start space-x-3 text-xs text-apple-gray-300">
